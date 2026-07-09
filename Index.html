@@ -1,0 +1,866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body { background: #f8f9fa; padding: 20px; }
+    .topic-card {
+      cursor: pointer; transition: transform 0.2s; height: 120px;
+      display: flex; align-items: center; justify-content: center;
+      flex-direction: column; border-radius: 16px;
+    }
+    .topic-card:hover { transform: translateY(-4px); box-shadow: 0 8px 20px rgba(0,0,0,0.12); }
+    .topic-card .icon { font-size: 2.5rem; }
+    .topic-card .name { font-size: 1rem; font-weight: 600; margin-top: 6px; }
+    .sentence-card {
+      background: white; border-radius: 12px; padding: 16px;
+      margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .sentence-text { font-size: 1.1rem; font-weight: 500; margin-bottom: 10px; }
+    .btn-sound { min-width: 100px; }
+    #backBtn { cursor: pointer; color: #0d6efd; font-weight: 500; }
+    #backBtn:hover { text-decoration: underline; }
+    .recording-indicator { color: #dc3545; font-weight: 600; display: none; }
+    .score-badge {
+      font-size: 0.85rem; font-weight: 700; padding: 4px 10px;
+      border-radius: 20px; display: inline-block;
+    }
+    .score-excellent { background: #d4edda; color: #155724; }
+    .score-good { background: #fff3cd; color: #856404; }
+    .score-fair { background: #ffeeba; color: #856404; }
+    .score-poor { background: #f8d7da; color: #721c24; }
+    .score-none { background: #e2e3e5; color: #383d41; }
+    .accent-selector { max-width: 220px; }
+    .listening-indicator { color: #0d6efd; font-weight: 600; display: none; }
+  </style>
+</head>
+<body>
+  <div class="container" style="max-width: 800px;">
+    <h1 class="text-center mb-4">English Speaking Practice</h1>
+
+    <div id="topicContainer" class="row g-3"></div>
+
+    <div id="sentencePanel" style="display:none;">
+      <div id="backBtn" class="mb-3"> Back to Topics</div>
+      <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+        <h3 id="topicTitle" class="mb-0"></h3>
+        <div class="d-flex align-items-center gap-2">
+          <select id="accentSelect" class="form-select form-select-sm accent-selector">
+            <option value="">Default voice</option>
+          </select>
+          <button id="randomizeBtn" class="btn btn-outline-primary btn-sm"> Randomize</button>
+        </div>
+      </div>
+      <div id="recordingIndicator" class="recording-indicator mb-2"> Recording...</div>
+      <div id="listeningIndicator" class="listening-indicator mb-2"> Listening...</div>
+      <div id="sentenceContainer"></div>
+    </div>
+  </div>
+
+  <script>
+    const TOPICS = [
+      { id: 1, name: 'Travel', icon: '\u{1F5FA}\uFE0F' },
+      { id: 2, name: 'Food & Dining', icon: '\u{1F354}' },
+      { id: 3, name: 'Weather', icon: '\u{1F324}\uFE0F' },
+      { id: 4, name: 'Health & Fitness', icon: '\u{1F4AA}' },
+      { id: 5, name: 'Work & Career', icon: '\u{1F4BC}' },
+      { id: 6, name: 'Hobbies & Leisure', icon: '\u{1F3A8}' },
+      { id: 7, name: 'Shopping', icon: '\u{1F6CD}\uFE0F' },
+      { id: 8, name: 'Family & Friends', icon: '\u{1F468}\u200D\u{1F469}\u200D\u{1F467}\u200D\u{1F466}' },
+      { id: 9, name: 'Education', icon: '\u{1F4DA}' },
+      { id: 10, name: 'Technology', icon: '\u{1F4BB}' }
+    ];
+
+    const SENTENCES = {
+      1: [
+        { id: 1, text: "I would like to book a flight to New York, please." },
+        { id: 2, text: "Could you tell me where the nearest hotel is?" },
+        { id: 3, text: "How much does a round-trip ticket cost?" },
+        { id: 4, text: "I need to check in my luggage at the counter." },
+        { id: 5, text: "What time does the boarding gate close?" },
+        { id: 6, text: "Is there a direct train from here to the airport?" },
+        { id: 7, text: "I prefer to sit by the window on the plane." },
+        { id: 8, text: "Can you recommend a good restaurant near the hotel?" },
+        { id: 9, text: "How long does it take to drive to the city center?" },
+        { id: 10, text: "I lost my passport and I need help finding it." },
+        { id: 11, text: "The view from the mountain top was absolutely breathtaking." },
+        { id: 12, text: "We should book a rental car before we arrive." },
+        { id: 13, text: "Do you accept credit cards or only cash here?" },
+        { id: 14, text: "Could you take a photo of us in front of the monument?" },
+        { id: 15, text: "I'm looking for a souvenir shop to buy gifts." },
+        { id: 16, text: "What is the best time of year to visit this country?" },
+        { id: 17, text: "The hotel room has a beautiful ocean view." },
+        { id: 18, text: "Is breakfast included in the room price?" },
+        { id: 19, text: "Excuse me, I think I took the wrong bus by mistake." },
+        { id: 20, text: "How far is the beach from our accommodation?" },
+        { id: 21, text: "I want to try the local street food while I'm here." },
+        { id: 22, text: "Do I need a visa to enter this country?" },
+        { id: 23, text: "The flight was delayed by three hours due to bad weather." },
+        { id: 24, text: "I'd like to exchange some dollars for the local currency." },
+        { id: 25, text: "Can you call a taxi for me tomorrow morning?" },
+        { id: 26, text: "This city has so many historical places to explore." },
+        { id: 27, text: "I always pack light when I travel for a weekend." },
+        { id: 28, text: "Is it safe to walk around here at night?" },
+        { id: 29, text: "We missed our connecting flight and had to wait." },
+        { id: 30, text: "The tour guide spoke very clearly and was helpful." },
+        { id: 31, text: "I love visiting museums when I go to a new city." },
+        { id: 32, text: "How much is the entrance fee for the castle?" },
+        { id: 33, text: "I need to buy a travel adapter for my phone charger." },
+        { id: 34, text: "The train station is just a five-minute walk from here." },
+        { id: 35, text: "Can you recommend a good hiking trail nearby?" },
+        { id: 36, text: "I enjoy traveling because I learn new things every time." },
+        { id: 37, text: "Please wake me up for the sunrise tomorrow." },
+        { id: 38, text: "The local people are very friendly and welcoming." },
+        { id: 39, text: "I try to learn a few phrases in the local language." },
+        { id: 40, text: "Our flight will take off in about thirty minutes." },
+        { id: 41, text: "The hotel provides free Wi-Fi in all rooms." },
+        { id: 42, text: "I got lost in the old town but found my way back." },
+        { id: 43, text: "Traveling by train is more relaxing than flying." },
+        { id: 44, text: "I need to confirm my reservation for tonight." },
+        { id: 45, text: "The street markets are full of amazing handmade crafts." },
+        { id: 46, text: "I always buy a postcard to send to my family." },
+        { id: 47, text: "The airport security check took longer than usual." },
+        { id: 48, text: "I can't wait to explore the local night market later." },
+        { id: 49, text: "Traveling alone has taught me to be more independent." },
+        { id: 50, text: "This is the most beautiful place I have ever visited." }
+      ],
+      2: [
+        { id: 1, text: "Can I see the menu, please?" },
+        { id: 2, text: "I would like to order a steak with mashed potatoes." },
+        { id: 3, text: "Do you have any vegetarian options on the menu?" },
+        { id: 4, text: "Could I get the bill when you have a moment?" },
+        { id: 5, text: "This soup tastes delicious and very comforting." },
+        { id: 6, text: "I'd like a glass of water with no ice, please." },
+        { id: 7, text: "What do you recommend as the chef's special today?" },
+        { id: 8, text: "The pasta is cooked perfectly and the sauce is rich." },
+        { id: 9, text: "I'm allergic to peanuts, so please check the ingredients." },
+        { id: 10, text: "Could we have a table near the window?" },
+        { id: 11, text: "I prefer my steak cooked medium rare." },
+        { id: 12, text: "The dessert menu looks amazing, I want to try everything." },
+        { id: 13, text: "Can you wrap this to go? I'm in a hurry." },
+        { id: 14, text: "How long does the food usually take to prepare?" },
+        { id: 15, text: "The coffee here is the best I've ever had." },
+        { id: 16, text: "I would like to make a reservation for six o'clock." },
+        { id: 17, text: "The portion sizes are really generous in this restaurant." },
+        { id: 18, text: "Could you bring me some extra napkins, please?" },
+        { id: 19, text: "I'm trying to eat healthier, so I'll have a salad." },
+        { id: 20, text: "The seafood is very fresh and comes from the local market." },
+        { id: 21, text: "I don't like spicy food, can you make it mild?" },
+        { id: 22, text: "This bread is freshly baked and smells wonderful." },
+        { id: 23, text: "Could you please refill my coffee cup?" },
+        { id: 24, text: "I love trying new cuisines from different countries." },
+        { id: 25, text: "The service here is always fast and friendly." },
+        { id: 26, text: "Can I have the chicken instead of the fish?" },
+        { id: 27, text: "The chocolate cake is rich and absolutely divine." },
+        { id: 28, text: "We need a table for four people, please." },
+        { id: 29, text: "Is the tap water safe to drink in this city?" },
+        { id: 30, text: "I'll have the same as my friend ordered." },
+        { id: 31, text: "The restaurant has a lovely outdoor seating area." },
+        { id: 32, text: "Could you tell me what ingredients are in this dish?" },
+        { id: 33, text: "I'd like to start with a light appetizer." },
+        { id: 34, text: "The waiter was very attentive and polite." },
+        { id: 35, text: "I overate at dinner and now I feel so full." },
+        { id: 36, text: "Do you have a kids' menu with smaller portions?" },
+        { id: 37, text: "I need a fork and knife, please." },
+        { id: 38, text: "The ice cream here is made from organic ingredients." },
+        { id: 39, text: "Could we have a little more time to decide?" },
+        { id: 40, text: "I really enjoyed the grilled vegetables with rice." },
+        { id: 41, text: "The soup of the day sounds perfect for this weather." },
+        { id: 42, text: "Can you recommend a good wine to go with this meal?" },
+        { id: 43, text: "I always have breakfast before I start my day." },
+        { id: 44, text: "The lemonade is freshly squeezed and very refreshing." },
+        { id: 45, text: "I'd like to try the tasting menu with all courses." },
+        { id: 46, text: "The sushi looks beautiful, almost too pretty to eat." },
+        { id: 47, text: "Could I have some more bread for the table?" },
+        { id: 48, text: "I usually cook dinner at home instead of eating out." },
+        { id: 49, text: "The pizza came out of the oven hot and crispy." },
+        { id: 50, text: "Thank you for the wonderful meal, everything was perfect." }
+      ],
+      3: [
+        { id: 1, text: "What is the weather forecast for tomorrow?" },
+        { id: 2, text: "It looks like it's going to rain later this afternoon." },
+        { id: 3, text: "The sun is shining brightly today, and it feels warm." },
+        { id: 4, text: "I love when the weather is cool and breezy." },
+        { id: 5, text: "Don't forget to take an umbrella with you today." },
+        { id: 6, text: "The temperature dropped significantly overnight." },
+        { id: 7, text: "It's so humid outside that I can't stop sweating." },
+        { id: 8, text: "The snow covered everything in white, and it looks magical." },
+        { id: 9, text: "I hope the weather stays nice for our picnic this weekend." },
+        { id: 10, text: "The wind is so strong that it's hard to walk straight." },
+        { id: 11, text: "Summer is my favorite season because I love the heat." },
+        { id: 12, text: "The forecast says it will be cloudy with a chance of sun." },
+        { id: 13, text: "I can hear thunder in the distance, a storm is coming." },
+        { id: 14, text: "The rain is pouring down really heavily right now." },
+        { id: 15, text: "I need to wear a coat because it's freezing outside." },
+        { id: 16, text: "The weather here changes so quickly, it's unpredictable." },
+        { id: 17, text: "I love the smell of fresh rain on dry ground." },
+        { id: 18, text: "The fog is so thick that I can barely see the road." },
+        { id: 19, text: "What is the average temperature in this city during winter?" },
+        { id: 20, text: "I prefer a mild climate without extreme temperatures." },
+        { id: 21, text: "The heat wave has been lasting for over a week now." },
+        { id: 22, text: "I always check the weather app before planning my day." },
+        { id: 23, text: "The autumn leaves look beautiful against the clear blue sky." },
+        { id: 24, text: "It's hailing outside, and the stones are quite large." },
+        { id: 25, text: "I enjoy rainy days because they are cozy and relaxing." },
+        { id: 26, text: "The weather forecast says it will be sunny all weekend." },
+        { id: 27, text: "The air feels so fresh after a good rainstorm." },
+        { id: 28, text: "I need to put on sunscreen because the UV index is high." },
+        { id: 29, text: "The cold wind makes my face feel numb." },
+        { id: 30, text: "I wish the snow would stop so we can drive safely." },
+        { id: 31, text: "The sky is full of dark clouds, it might storm soon." },
+        { id: 32, text: "Spring is beautiful because the flowers start to bloom." },
+        { id: 33, text: "The temperature will reach thirty degrees Celsius today." },
+        { id: 34, text: "I love watching lightning flash across the night sky." },
+        { id: 35, text: "The weather was perfect for a long walk in the park." },
+        { id: 36, text: "We had a mild winter this year with very little snow." },
+        { id: 37, text: "I always carry a light jacket in case it gets chilly." },
+        { id: 38, text: "The roads are icy, so please drive very carefully." },
+        { id: 39, text: "I can see my breath when I breathe out in the cold." },
+        { id: 40, text: "The weather in this region is tropical and humid." },
+        { id: 41, text: "I love hearing the sound of rain tapping on the roof." },
+        { id: 42, text: "The sun finally came out after three days of rain." },
+        { id: 43, text: "I need to buy a new pair of boots for the rainy season." },
+        { id: 44, text: "The weather affects my mood more than I'd like to admit." },
+        { id: 45, text: "The icicles hanging from the roof look beautiful." },
+        { id: 46, text: "I enjoy the cool breeze during an evening walk." },
+        { id: 47, text: "The storm knocked down several trees in our neighborhood." },
+        { id: 48, text: "I always feel more energetic on sunny days." },
+        { id: 49, text: "The weather in spring is usually mild and pleasant." },
+        { id: 50, text: "We should cancel the trip if the weather gets worse." }
+      ],
+      4: [
+        { id: 1, text: "I go to the gym three times a week to stay fit." },
+        { id: 2, text: "Drinking enough water is very important for your health." },
+        { id: 3, text: "I try to eat at least five portions of fruit and vegetables daily." },
+        { id: 4, text: "Running in the morning helps me feel energized all day." },
+        { id: 5, text: "You should stretch before and after exercising to prevent injury." },
+        { id: 6, text: "I have a headache, do you have any pain medicine?" },
+        { id: 7, text: "Getting at least eight hours of sleep is essential for good health." },
+        { id: 8, text: "I want to improve my flexibility, so I started doing yoga." },
+        { id: 9, text: "The doctor advised me to reduce my sugar intake." },
+        { id: 10, text: "I feel much better now that I exercise regularly." },
+        { id: 11, text: "Taking the stairs instead of the elevator is a small change." },
+        { id: 12, text: "I need to buy some vitamins to boost my immune system." },
+        { id: 13, text: "Walking for thirty minutes a day can improve your health." },
+        { id: 14, text: "I have a cold and I feel very tired all the time." },
+        { id: 15, text: "Meditation helps me relax and clear my mind." },
+        { id: 16, text: "You should always warm up before you start heavy lifting." },
+        { id: 17, text: "I'm trying to cut back on caffeine and drink more tea." },
+        { id: 18, text: "The gym is having a special discount on annual memberships." },
+        { id: 19, text: "I think I pulled a muscle while lifting weights yesterday." },
+        { id: 20, text: "A balanced diet gives you the energy you need every day." },
+        { id: 21, text: "I feel out of shape because I haven't exercised in months." },
+        { id: 22, text: "My doctor recommended I check my blood pressure regularly." },
+        { id: 23, text: "I prefer working out at home using online fitness videos." },
+        { id: 24, text: "Eating too much junk food can affect your energy levels." },
+        { id: 25, text: "I signed up for a five-kilometer charity run next month." },
+        { id: 26, text: "You should rest for at least a minute between sets." },
+        { id: 27, text: "I have an allergy to pollen, and spring is the worst season." },
+        { id: 28, text: "Strength training helps build muscle and improve posture." },
+        { id: 29, text: "I always carry a water bottle when I go for a run." },
+        { id: 30, text: "My back hurts from sitting at my desk all day." },
+        { id: 31, text: "I want to lower my cholesterol by eating healthier foods." },
+        { id: 32, text: "Swimming is a great full-body workout that is easy on the joints." },
+        { id: 33, text: "I feel more focused after I exercise in the morning." },
+        { id: 34, text: "The doctor said I need to take this medicine twice a day." },
+        { id: 35, text: "I'm trying to reduce my stress levels by practicing mindfulness." },
+        { id: 36, text: "I've been feeling much more energetic since I started running." },
+        { id: 37, text: "You should see a doctor if the pain doesn't go away." },
+        { id: 38, text: "I like to track my steps with a fitness watch." },
+        { id: 39, text: "Eating a good breakfast gives me energy for the whole morning." },
+        { id: 40, text: "I want to be more consistent with my workout routine." },
+        { id: 41, text: "I feel sore after yesterday's workout, but it's a good feeling." },
+        { id: 42, text: "The trainer showed me how to do the exercise correctly." },
+        { id: 43, text: "I try to avoid processed foods and eat natural ingredients." },
+        { id: 44, text: "A short nap during the day can help me feel refreshed." },
+        { id: 45, text: "I joined a dance class to make exercise more fun." },
+        { id: 46, text: "Drinking green tea is good for your metabolism." },
+        { id: 47, text: "I always cool down with light stretches after a workout." },
+        { id: 48, text: "The fresh air during outdoor exercise is very refreshing." },
+        { id: 49, text: "I'm learning to listen to my body and rest when needed." },
+        { id: 50, text: "Small healthy habits can make a big difference over time." }
+      ],
+      5: [
+        { id: 1, text: "I have a meeting with my team at ten o'clock this morning." },
+        { id: 2, text: "I need to finish this report by the end of the day." },
+        { id: 3, text: "My commute to work takes about forty minutes each way." },
+        { id: 4, text: "I'm looking for a new job that offers better opportunities." },
+        { id: 5, text: "Could you please review my draft before I send it?" },
+        { id: 6, text: "I work in the marketing department of a large company." },
+        { id: 7, text: "I usually have lunch with my colleagues in the cafeteria." },
+        { id: 8, text: "I'm preparing a presentation for our client next week." },
+        { id: 9, text: "My boss gave me positive feedback on my recent project." },
+        { id: 10, text: "I need to improve my time management skills at work." },
+        { id: 11, text: "Working from home has both advantages and challenges." },
+        { id: 12, text: "I have to attend a training session on Friday afternoon." },
+        { id: 13, text: "I sent an email to the client with the updated proposal." },
+        { id: 14, text: "I enjoy my job because it allows me to be creative." },
+        { id: 15, text: "The deadline for this project is next Monday morning." },
+        { id: 16, text: "I asked for a raise during my performance review." },
+        { id: 17, text: "I'm responsible for managing the social media accounts." },
+        { id: 18, text: "Our team reached the quarterly sales goal ahead of schedule." },
+        { id: 19, text: "I need to update my resume and LinkedIn profile soon." },
+        { id: 20, text: "The company offers great benefits including health insurance." },
+        { id: 21, text: "I have a conference call with the New York office at three." },
+        { id: 22, text: "I'm learning new skills through an online course." },
+        { id: 23, text: "I have to organize the files on my computer this week." },
+        { id: 24, text: "The office culture here is very collaborative and supportive." },
+        { id: 25, text: "I'd like to apply for the senior position in our department." },
+        { id: 26, text: "I usually check my emails first thing in the morning." },
+        { id: 27, text: "I work best when I have a clear list of priorities." },
+        { id: 28, text: "I need to follow up with the supplier about the order." },
+        { id: 29, text: "My coworker helped me solve a difficult technical problem." },
+        { id: 30, text: "I'm attending a networking event next week to meet new people." },
+        { id: 31, text: "The project requires coordination between several departments." },
+        { id: 32, text: "I always arrive at the office fifteen minutes early." },
+        { id: 33, text: "I need to ask for permission to take a day off next week." },
+        { id: 34, text: "The company is launching a new product next quarter." },
+        { id: 35, text: "I feel more productive when I work without interruptions." },
+        { id: 36, text: "I should update the spreadsheet with the latest numbers." },
+        { id: 37, text: "I'm thinking about starting my own business someday." },
+        { id: 38, text: "The training program helped me understand the software better." },
+        { id: 39, text: "I need to speak with HR about my benefits package." },
+        { id: 40, text: "I try to avoid multitasking because it reduces my focus." },
+        { id: 41, text: "Our team celebrates every small success together." },
+        { id: 42, text: "I have to submit my timesheet by the end of the month." },
+        { id: 43, text: "I enjoy collaborating with people from different backgrounds." },
+        { id: 44, text: "The meeting lasted longer than I expected." },
+        { id: 45, text: "I want to build a strong professional network." },
+        { id: 46, text: "I need to learn how to use the new project management tool." },
+        { id: 47, text: "My job requires me to travel to different cities often." },
+        { id: 48, text: "I feel proud when my ideas are implemented at work." },
+        { id: 49, text: "I'm considering getting a professional certification." },
+        { id: 50, text: "Work-life balance is very important for my well-being." }
+      ],
+      6: [
+        { id: 1, text: "I love reading books in my free time, especially fiction." },
+        { id: 2, text: "I've started learning to play the guitar, and it's fun." },
+        { id: 3, text: "Gardening helps me relax and connect with nature." },
+        { id: 4, text: "I spend a lot of time taking photos of landscapes and nature." },
+        { id: 5, text: "I enjoy painting as a way to express my feelings." },
+        { id: 6, text: "I like to go hiking on weekends to explore new trails." },
+        { id: 7, text: "I've been collecting stamps since I was a child." },
+        { id: 8, text: "I love watching movies, especially science fiction films." },
+        { id: 9, text: "I'm learning how to cook different dishes from around the world." },
+        { id: 10, text: "I like to play chess with my friends at the coffee shop." },
+        { id: 11, text: "I spend my weekends playing video games with my brother." },
+        { id: 12, text: "I enjoy knitting scarves and hats during the winter." },
+        { id: 13, text: "I write stories and poems in my spare time." },
+        { id: 14, text: "I'm learning how to dance salsa, and it's very energetic." },
+        { id: 15, text: "I love going to the beach and listening to the waves." },
+        { id: 16, text: "I spend a lot of time watching documentaries about nature." },
+        { id: 17, text: "I like to do puzzles to keep my mind active." },
+        { id: 18, text: "I've recently taken up pottery, and it's very satisfying." },
+        { id: 19, text: "I love going to live concerts and music festivals." },
+        { id: 20, text: "I practice photography every weekend to improve my skills." },
+        { id: 21, text: "I like to go fishing at the lake near my house." },
+        { id: 22, text: "I enjoy spending time with my dog in the park." },
+        { id: 23, text: "I'm learning a new language as a fun challenge." },
+        { id: 24, text: "I love visiting art galleries and museums in the city." },
+        { id: 25, text: "I like to bake cakes and cookies for my friends." },
+        { id: 26, text: "I spend my evenings watching TV series or anime." },
+        { id: 27, text: "I'm trying to write a novel, but it takes a lot of time." },
+        { id: 28, text: "I enjoy camping under the stars with my friends." },
+        { id: 29, text: "I like to ride my bicycle along the river trail." },
+        { id: 30, text: "I collect vinyl records from different music genres." },
+        { id: 31, text: "I love going to the theater to watch live performances." },
+        { id: 32, text: "I spend time learning calligraphy, and it's very calming." },
+        { id: 33, text: "I like to play basketball with my neighbors on weekends." },
+        { id: 34, text: "I enjoy making handmade cards for my family on holidays." },
+        { id: 35, text: "I love watching birds in my garden with binoculars." },
+        { id: 36, text: "I'm learning woodworking and building small furniture pieces." },
+        { id: 37, text: "I like to explore new coffee shops and try different brews." },
+        { id: 38, text: "I spend my free time volunteering at the local shelter." },
+        { id: 39, text: "I enjoy jogging along the beach while watching the sunset." },
+        { id: 40, text: "I like to do yoga in my living room every morning." },
+        { id: 41, text: "I'm trying to learn how to code as a creative hobby." },
+        { id: 42, text: "I love listening to podcasts while I do household chores." },
+        { id: 43, text: "I enjoy sketching portraits of people at the park." },
+        { id: 44, text: "I like to go swimming at the community pool twice a week." },
+        { id: 45, text: "I spend my weekends exploring new places in my city." },
+        { id: 46, text: "I love making my own candles and soaps at home." },
+        { id: 47, text: "I enjoy playing board games with my family on Friday nights." },
+        { id: 48, text: "I like to meditate in the morning to start my day calmly." },
+        { id: 49, text: "I'm learning how to repair old furniture as a project." },
+        { id: 50, text: "I love having a hobby because it makes life more interesting." }
+      ],
+      7: [
+        { id: 1, text: "How much does this shirt cost?" },
+        { id: 2, text: "I'm just looking around, thank you." },
+        { id: 3, text: "Do you have this jacket in a smaller size?" },
+        { id: 4, text: "Can I try this dress on in the fitting room?" },
+        { id: 5, text: "Is there a discount if I buy two items?" },
+        { id: 6, text: "I love the color of this handbag, it's beautiful." },
+        { id: 7, text: "Do you accept returns if I change my mind?" },
+        { id: 8, text: "I'm looking for a pair of comfortable walking shoes." },
+        { id: 9, text: "Could you wrap this as a gift for me?" },
+        { id: 10, text: "This sweater is on sale for half the original price." },
+        { id: 11, text: "I need a new winter coat that is warm and stylish." },
+        { id: 12, text: "Can you tell me where the electronics section is?" },
+        { id: 13, text: "I prefer shopping online because it's more convenient." },
+        { id: 14, text: "The quality of this fabric feels very soft and durable." },
+        { id: 15, text: "I would like to pay with my credit card, please." },
+        { id: 16, text: "Is there a loyalty program I can sign up for?" },
+        { id: 17, text: "I bought this yesterday, but I'd like to exchange it." },
+        { id: 18, text: "The fitting rooms are located at the back of the store." },
+        { id: 19, text: "I need to buy some groceries for the week." },
+        { id: 20, text: "This store has a great selection of organic products." },
+        { id: 21, text: "The price tag says fifty dollars, but is there a sale?" },
+        { id: 22, text: "I'm looking for a birthday present for my mother." },
+        { id: 23, text: "Could you help me find this item in a different color?" },
+        { id: 24, text: "I love going to the farmer's market on Saturday mornings." },
+        { id: 25, text: "The customer service here is always very helpful." },
+        { id: 26, text: "I need to buy a new phone charger for my device." },
+        { id: 27, text: "Do you have any coupons or promotional codes available?" },
+        { id: 28, text: "I spent too much money shopping today." },
+        { id: 29, text: "I prefer natural fabrics like cotton and linen." },
+        { id: 30, text: "The checkout line is very long, I'll come back later." },
+        { id: 31, text: "I'm looking for a book on learning English grammar." },
+        { id: 32, text: "Can I get a receipt, please?" },
+        { id: 33, text: "I need to buy a new suitcase for my upcoming trip." },
+        { id: 34, text: "The sales assistant recommended a very good product." },
+        { id: 35, text: "I like to compare prices before I make a purchase." },
+        { id: 36, text: "I'd like to order a coffee and a sandwich, please." },
+        { id: 37, text: "Do you have a size guide I can check before buying?" },
+        { id: 38, text: "I need to return a defective item I bought last week." },
+        { id: 39, text: "I always check the reviews before buying something online." },
+        { id: 40, text: "This store has a beautiful display of flowers outside." },
+        { id: 41, text: "I bought these jeans online, but they don't fit me." },
+        { id: 42, text: "The mall is open until nine o'clock in the evening." },
+        { id: 43, text: "I need to find a gift that is both nice and affordable." },
+        { id: 44, text: "I love browsing through the bookstore on rainy days." },
+        { id: 45, text: "I bought a new lamp for my living room." },
+        { id: 46, text: "The cashier gave me the wrong change." },
+        { id: 47, text: "I need to buy some school supplies for my children." },
+        { id: 48, text: "I prefer to shop with a list to avoid impulse buying." },
+        { id: 49, text: "The online store offers free shipping on orders over fifty dollars." },
+        { id: 50, text: "I feel happy when I find a good deal while shopping." }
+      ],
+      8: [
+        { id: 1, text: "I have a very close relationship with my family." },
+        { id: 2, text: "My mother is the kindest person I know." },
+        { id: 3, text: "I usually visit my grandparents every Sunday." },
+        { id: 4, text: "My best friend and I have known each other for ten years." },
+        { id: 5, text: "I love spending time with my younger brother." },
+        { id: 6, text: "My father taught me how to ride a bicycle when I was young." },
+        { id: 7, text: "We always have dinner together as a family on weekends." },
+        { id: 8, text: "I miss my sister because she lives in another country." },
+        { id: 9, text: "I'm planning a surprise party for my friend's birthday." },
+        { id: 10, text: "Family is more important than anything else in my life." },
+        { id: 11, text: "My cousin is coming to visit us from London next week." },
+        { id: 12, text: "I like to call my parents every day to check on them." },
+        { id: 13, text: "My friends and I go to the movies every Friday night." },
+        { id: 14, text: "I inherited my love of cooking from my grandmother." },
+        { id: 15, text: "I'm the oldest child in my family." },
+        { id: 16, text: "My best friend always supports me when I feel down." },
+        { id: 17, text: "We celebrate holidays together with a big family dinner." },
+        { id: 18, text: "My aunt is a nurse, and she works very hard." },
+        { id: 19, text: "I enjoy playing cards with my family during the holidays." },
+        { id: 20, text: "I feel grateful to have such wonderful friends in my life." },
+        { id: 21, text: "My nephew just started kindergarten this year." },
+        { id: 22, text: "I like to take family photos during special occasions." },
+        { id: 23, text: "My uncle is a teacher and he inspires me a lot." },
+        { id: 24, text: "I share a lot of happy memories with my childhood friends." },
+        { id: 25, text: "My parents have been married for thirty years." },
+        { id: 26, text: "I enjoy having deep conversations with my closest friends." },
+        { id: 27, text: "My niece loves to draw and she's very talented." },
+        { id: 28, text: "I always help my siblings when they need advice." },
+        { id: 29, text: "I'm very close to my cousin because we grew up together." },
+        { id: 30, text: "My friends and I like to travel together during vacation." },
+        { id: 31, text: "I respect my parents for all the sacrifices they made." },
+        { id: 32, text: "I like to host dinner parties for my friends at home." },
+        { id: 33, text: "My brother is very good at fixing things around the house." },
+        { id: 34, text: "I enjoy going on walks with my grandmother in the park." },
+        { id: 35, text: "I feel lucky to have a family that supports my dreams." },
+        { id: 36, text: "My best friend and I share the same sense of humor." },
+        { id: 37, text: "I always send flowers to my mother on her birthday." },
+        { id: 38, text: "My father works as an engineer in a big company." },
+        { id: 39, text: "I love the traditions that our family has kept for years." },
+        { id: 40, text: "My friends describe me as a loyal and trustworthy person." },
+        { id: 41, text: "I like to babysit my little cousin on weekends." },
+        { id: 42, text: "My sister and I used to share a room when we were kids." },
+        { id: 43, text: "I'm planning a reunion with my college friends next month." },
+        { id: 44, text: "My grandfather tells the best stories about his youth." },
+        { id: 45, text: "I enjoy cooking my mother's recipes for my friends." },
+        { id: 46, text: "I feel thankful for the love and care my family gives me." },
+        { id: 47, text: "My friends throw a surprise party for my promotion." },
+        { id: 48, text: "I like to write letters to my grandmother who lives far away." },
+        { id: 49, text: "My brother is my role model and I look up to him." },
+        { id: 50, text: "True friends are the family we choose for ourselves." }
+      ],
+      9: [
+        { id: 1, text: "I'm studying English because I want to travel abroad." },
+        { id: 2, text: "My favorite subject in school was history." },
+        { id: 3, text: "I need to finish my homework before the deadline." },
+        { id: 4, text: "The teacher explained the lesson very clearly today." },
+        { id: 5, text: "I'm preparing for my final exams next month." },
+        { id: 6, text: "I enjoy learning new things every single day." },
+        { id: 7, text: "I have to write an essay about climate change." },
+        { id: 8, text: "I want to improve my speaking skills in English." },
+        { id: 9, text: "My university has a very large library with many books." },
+        { id: 10, text: "I always take notes during class to help me remember." },
+        { id: 11, text: "I'm thinking about studying abroad for a semester." },
+        { id: 12, text: "The professor gave us a very interesting assignment." },
+        { id: 13, text: "I need to review the vocabulary words from last week." },
+        { id: 14, text: "I like to study in a quiet place without distractions." },
+        { id: 15, text: "I have a scholarship to cover my tuition fees." },
+        { id: 16, text: "I'm taking an online course to learn data analysis." },
+        { id: 17, text: "The exam was harder than I expected." },
+        { id: 18, text: "I study better when I use flashcards to practice." },
+        { id: 19, text: "I want to earn a degree in computer science." },
+        { id: 20, text: "My classmates are very helpful and supportive." },
+        { id: 21, text: "I need to improve my grammar and pronunciation." },
+        { id: 22, text: "I always do my homework right after school." },
+        { id: 23, text: "The teacher gave us feedback on our presentations." },
+        { id: 24, text: "I'm learning how to solve complex math problems." },
+        { id: 25, text: "I enjoy group discussions because I learn from others." },
+        { id: 26, text: "I need to buy some new textbooks for this semester." },
+        { id: 27, text: "I have a part-time job while I study at university." },
+        { id: 28, text: "I want to become a teacher and help other students." },
+        { id: 29, text: "I find it easier to remember words when I use them in sentences." },
+        { id: 30, text: "I'm taking a break from studying to have some coffee." },
+        { id: 31, text: "The school provides free tutoring for students who need help." },
+        { id: 32, text: "I'm working on a group project about renewable energy." },
+        { id: 33, text: "I enjoy learning languages because it opens new doors." },
+        { id: 34, text: "I need to practice my listening skills by watching videos." },
+        { id: 35, text: "My grades have improved since I started studying regularly." },
+        { id: 36, text: "I'm attending a workshop on public speaking skills." },
+        { id: 37, text: "Research is an important part of writing a good paper." },
+        { id: 38, text: "I always ask questions when I don't understand something." },
+        { id: 39, text: "I'm trying to manage my time better between study and rest." },
+        { id: 40, text: "The lecture hall was completely full today." },
+        { id: 41, text: "I'm reading a very interesting book for my literature class." },
+        { id: 42, text: "I want to apply for an internship at a tech company." },
+        { id: 43, text: "I have to submit my thesis by the end of the year." },
+        { id: 44, text: "I like to use educational apps to practice on my phone." },
+        { id: 45, text: "The graduation ceremony will be held in June." },
+        { id: 46, text: "I'm learning about different cultures in my anthropology class." },
+        { id: 47, text: "I need to practice speaking with a native English speaker." },
+        { id: 48, text: "I believe that education is the key to a better future." },
+        { id: 49, text: "I'm taking notes on the most important points from the lecture." },
+        { id: 50, text: "I feel proud when I achieve a good grade after hard work." }
+      ],
+      10: [
+        { id: 1, text: "I use my smartphone for almost everything during the day." },
+        { id: 2, text: "I spend too much time scrolling through social media." },
+        { id: 3, text: "Can you help me fix this problem with my computer?" },
+        { id: 4, text: "I prefer using a laptop over a tablet for work." },
+        { id: 5, text: "The internet connection is very slow today." },
+        { id: 6, text: "I need to update my phone to the latest software version." },
+        { id: 7, text: "I always back up my files to the cloud storage." },
+        { id: 8, text: "Artificial intelligence is changing the way we live." },
+        { id: 9, text: "I love using apps that help me stay organized." },
+        { id: 10, text: "My battery died because I forgot to charge it last night." },
+        { id: 11, text: "I'm learning how to code in Python and JavaScript." },
+        { id: 12, text: "Social media has both positive and negative effects." },
+        { id: 13, text: "I bought a new smartwatch to track my daily activity." },
+        { id: 14, text: "The printer is not working again, I need to fix it." },
+        { id: 15, text: "I use video calls to keep in touch with my family abroad." },
+        { id: 16, text: "I spend a lot of time watching videos on the internet." },
+        { id: 17, text: "Technology has made communication much faster than before." },
+        { id: 18, text: "I need to clear some storage space on my phone." },
+        { id: 19, text: "I rely on navigation apps when I drive to new places." },
+        { id: 20, text: "Cybersecurity is very important to protect personal data." },
+        { id: 21, text: "I love how smart home devices make life more convenient." },
+        { id: 22, text: "I get distracted easily when I have too many notifications." },
+        { id: 23, text: "I'm considering buying a new laptop for my studies." },
+        { id: 24, text: "The software crashed and I lost all my unsaved work." },
+        { id: 25, text: "I use a password manager to keep my accounts secure." },
+        { id: 26, text: "Virtual reality is becoming more popular in gaming." },
+        { id: 27, text: "I enjoy learning about new gadgets and technology trends." },
+        { id: 28, text: "I need to install an antivirus program on my computer." },
+        { id: 29, text: "I spend less time watching TV since I got a streaming service." },
+        { id: 30, text: "I'm worried about my privacy when using public Wi-Fi." },
+        { id: 31, text: "I use a fitness tracker to monitor my steps and heart rate." },
+        { id: 32, text: "Technology helps me learn new skills through online courses." },
+        { id: 33, text: "I accidentally deleted an important file from my computer." },
+        { id: 34, text: "I prefer reading e-books over physical books now." },
+        { id: 35, text: "I'm fascinated by how self-driving cars work." },
+        { id: 36, text: "I need to upgrade my phone because it's too slow." },
+        { id: 37, text: "I use cloud storage to share large files with colleagues." },
+        { id: 38, text: "The keyboard on my laptop is not responding properly." },
+        { id: 39, text: "I love taking photos with my phone's high-quality camera." },
+        { id: 40, text: "Automation is changing the job market in many industries." },
+        { id: 41, text: "I need to charge my wireless headphones before the flight." },
+        { id: 42, text: "I use an online calendar to keep track of my appointments." },
+        { id: 43, text: "The new update brought a lot of useful features." },
+        { id: 44, text: "I'm careful about what I share online to protect my privacy." },
+        { id: 45, text: "I use a smart speaker to play music and set reminders." },
+        { id: 46, text: "I find it hard to focus when I'm constantly checking my phone." },
+        { id: 47, text: "I'm excited about the future of renewable energy technology." },
+        { id: 48, text: "I use voice typing when I don't want to type manually." },
+        { id: 49, text: "The loading time for this website is too long." },
+        { id: 50, text: "Technology helps me stay connected with people around the world." }
+      ]
+    };
+
+    let currentTopicId = null;
+    let currentSentences = [];
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let currentRecordingId = null;
+    let currentSentenceText = '';
+    let recognition = null;
+    let transcriptBuffer = '';
+    let selectedVoice = null;
+
+    document.addEventListener('DOMContentLoaded', () => {
+      renderTopics();
+      populateAccents();
+    });
+
+    function populateAccents() {
+      const sel = document.getElementById('accentSelect');
+      const saved = localStorage.getItem('preferredAccent') || '';
+      const populate = () => {
+        const voices = window.speechSynthesis.getVoices();
+        const seen = new Set();
+        sel.innerHTML = '<option value="">Default voice</option>';
+        voices.forEach(v => {
+          if (v.lang && v.lang.startsWith('en') && !seen.has(v.lang)) {
+            seen.add(v.lang);
+            const label = v.lang.replace('en-', '').toUpperCase();
+            const names = { US: 'American', GB: 'British', AU: 'Australian', IN: 'Indian', CA: 'Canadian' };
+            const display = names[label] || label;
+            const opt = document.createElement('option');
+            opt.value = v.lang;
+            opt.textContent = `${display} (${v.lang})`;
+            if (v.lang === saved) opt.selected = true;
+            sel.appendChild(opt);
+          }
+        });
+        if (saved) updateSelectedVoice(saved);
+      };
+      populate();
+      if (window.speechSynthesis.onvoiceschanged !== undefined) {
+        window.speechSynthesis.onvoiceschanged = populate;
+      }
+    }
+
+    document.getElementById('accentSelect').addEventListener('change', e => {
+      const val = e.target.value;
+      localStorage.setItem('preferredAccent', val);
+      updateSelectedVoice(val);
+    });
+
+    function updateSelectedVoice(lang) {
+      if (!lang) { selectedVoice = null; return; }
+      const voices = window.speechSynthesis.getVoices();
+      selectedVoice = voices.find(v => v.lang === lang) || null;
+    }
+
+    function renderTopics() {
+      const container = document.getElementById('topicContainer');
+      container.innerHTML = TOPICS.map(t => `
+        <div class="col-6 col-md-4 col-lg-3">
+          <div class="topic-card card" onclick="selectTopic(${t.id}, '${t.name}')">
+            <div class="icon">${t.icon}</div>
+            <div class="name">${t.name}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function selectTopic(id, name) {
+      currentTopicId = id;
+      document.getElementById('topicContainer').style.display = 'none';
+      document.getElementById('sentencePanel').style.display = 'block';
+      document.getElementById('topicTitle').textContent = name;
+      loadRandomSentences(id);
+    }
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      currentTopicId = null;
+      document.getElementById('topicContainer').style.display = '';
+      document.getElementById('sentencePanel').style.display = 'none';
+    });
+
+    document.getElementById('randomizeBtn').addEventListener('click', () => {
+      if (currentTopicId) loadRandomSentences(currentTopicId);
+    });
+
+    function loadRandomSentences(topicId) {
+      const all = SENTENCES[topicId] || [];
+      const shuffled = all.sort(() => Math.random() - 0.5);
+      renderSentences(shuffled.slice(0, 10));
+    }
+
+    function renderSentences(sentences) {
+      currentSentences = sentences;
+      const container = document.getElementById('sentenceContainer');
+      container.innerHTML = sentences.map(s => {
+        const storedKey = `recording_${currentTopicId}_${s.id}`;
+        const scoreKey = `score_${currentTopicId}_${s.id}`;
+        const hasRecording = localStorage.getItem(storedKey);
+        const savedScore = localStorage.getItem(scoreKey);
+        const recordLabel = hasRecording ? ' Re-record' : ' Record';
+        const scoreHtml = savedScore !== null
+          ? renderScoreBadge(parseInt(savedScore, 10))
+          : '<span class="score-badge score-none">Not scored</span>';
+        return `
+          <div class="sentence-card" data-id="${s.id}">
+            <div class="sentence-text">${s.text}</div>
+            <div class="d-flex align-items-center gap-2 flex-wrap">
+              <button class="btn btn-primary btn-sm btn-sound" onclick="listenSentence('${s.text.replace(/'/g, "\\'")}')"> Listen</button>
+              <button class="btn btn-outline-secondary btn-sm btn-sound record-btn" onclick="startRecording(${currentTopicId}, ${s.id}, '${s.text.replace(/'/g, "\\'")}')">${recordLabel}</button>
+              <button class="btn btn-success btn-sm btn-sound play-btn" onclick="playRecording(${currentTopicId}, ${s.id})" style="${hasRecording ? '' : 'display:none'}"> My Voice</button>
+              <span id="scoreDisplay_${currentTopicId}_${s.id}">${scoreHtml}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderScoreBadge(score) {
+      let cls = 'score-poor';
+      if (score >= 80) cls = 'score-excellent';
+      else if (score >= 60) cls = 'score-good';
+      else if (score >= 40) cls = 'score-fair';
+      return `<span class="score-badge ${cls}">Score: ${score}%</span>`;
+    }
+
+    function listenSentence(text) {
+      window.speechSynthesis.cancel();
+      document.getElementById('listeningIndicator').style.display = 'block';
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      utterance.rate = 0.9;
+      if (selectedVoice) utterance.voice = selectedVoice;
+      utterance.onend = () => {
+        document.getElementById('listeningIndicator').style.display = 'none';
+      };
+      window.speechSynthesis.speak(utterance);
+    }
+
+    function startRecording(topicId, sentenceId, sentenceText) {
+      const recordingId = `recording_${topicId}_${sentenceId}`;
+      const existing = localStorage.getItem(recordingId);
+
+      if (existing && !confirm('Overwrite previous recording and re-evaluate?')) return;
+
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        alert('Recording not supported in this browser.');
+        return;
+      }
+
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        stopRecording();
+        return;
+      }
+
+      currentRecordingId = recordingId;
+      currentSentenceText = sentenceText;
+      audioChunks = [];
+      transcriptBuffer = '';
+
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+        mediaRecorder = new MediaRecorder(stream);
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = () => {
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          const reader = new FileReader();
+          reader.onloadend = () => {
+            localStorage.setItem(currentRecordingId, reader.result);
+            stream.getTracks().forEach(t => t.stop());
+            evaluateSpeech(topicId, sentenceId, sentenceText);
+            renderSentencesForTopic();
+          };
+          reader.readAsDataURL(blob);
+          document.getElementById('recordingIndicator').style.display = 'none';
+        };
+        mediaRecorder.start();
+        document.getElementById('recordingIndicator').style.display = 'block';
+        document.querySelectorAll('.record-btn').forEach(b => b.disabled = true);
+        mediaRecorder.addEventListener('start', () => {
+          document.querySelectorAll('.record-btn').forEach(b => b.disabled = false);
+          const btns = document.querySelectorAll('.record-btn');
+          btns.forEach(b => b.textContent = ' Stop');
+        });
+
+        if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+          const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+          recognition = new SpeechRecognition();
+          recognition.lang = 'en-US';
+          recognition.continuous = true;
+          recognition.interimResults = true;
+          recognition.onresult = e => {
+            transcriptBuffer = '';
+            for (let i = e.resultIndex; i < e.results.length; i++) {
+              if (e.results[i].isFinal) {
+                transcriptBuffer += e.results[i][0].transcript + ' ';
+              }
+            }
+            transcriptBuffer = transcriptBuffer.trim();
+          };
+          recognition.onerror = () => {};
+          recognition.start();
+        }
+      }).catch(err => alert('Microphone access denied.'));
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state === 'recording') {
+        mediaRecorder.stop();
+      }
+      if (recognition) {
+        try { recognition.stop(); } catch(e) {}
+        recognition = null;
+      }
+      const btns = document.querySelectorAll('.record-btn');
+      btns.forEach(b => b.textContent = ' Record');
+    }
+
+    function evaluateSpeech(topicId, sentenceId, originalText) {
+      const userText = transcriptBuffer || '';
+      if (!userText) return;
+
+      const score = calculateSimilarity(originalText, userText);
+      const scoreKey = `score_${topicId}_${sentenceId}`;
+      localStorage.setItem(scoreKey, score.toString());
+
+      const display = document.getElementById(`scoreDisplay_${topicId}_${sentenceId}`);
+      if (display) {
+        display.innerHTML = renderScoreBadge(score);
+      }
+    }
+
+    function calculateSimilarity(original, userSpeech) {
+      const normalize = s => s.toLowerCase()
+        .replace(/[^\w\s']/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      const origWords = normalize(original).split(' ');
+      const userWords = normalize(userSpeech).split(' ');
+
+      if (origWords.length === 0) return 0;
+
+      const remaining = [...userWords];
+      let matched = 0;
+
+      for (const word of origWords) {
+        const idx = remaining.indexOf(word);
+        if (idx !== -1) {
+          matched++;
+          remaining.splice(idx, 1);
+        }
+      }
+
+      return Math.round((matched / origWords.length) * 100);
+    }
+
+    function renderSentencesForTopic() {
+      renderSentences(currentSentences);
+    }
+
+    function playRecording(topicId, sentenceId) {
+      const data = localStorage.getItem(`recording_${topicId}_${sentenceId}`);
+      if (!data) return;
+      const audio = new Audio(data);
+      audio.play();
+    }
+  </script>
+</body>
+</html>
