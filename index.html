@@ -39,7 +39,7 @@
 </head>
 <body>
   <div class="container" style="max-width: 800px;">
-    <h1 class="text-center mb-4">English Speaking Practice</h1>
+    <h1 class="text-center mb-4">English Speaking Practice kkX</h1>
 
     <div id="topicContainer" class="row g-3"></div>
 
@@ -71,10 +71,12 @@
     let recognition = null;
     let transcriptBuffer = '';
     let selectedVoice = null;
+    let scoringSupported = false;
 
     document.addEventListener('DOMContentLoaded', () => {
       renderTopics();
       populateAccents();
+      scoringSupported = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
     });
 
     function populateAccents() {
@@ -162,9 +164,10 @@
         const hasRecording = localStorage.getItem(storedKey);
         const savedScore = localStorage.getItem(scoreKey);
         const recordLabel = hasRecording ? ' Re-record' : ' Record';
+        const defaultScoreLabel = scoringSupported ? 'Not scored' : 'Scoring N/A';
         const scoreHtml = savedScore !== null
           ? renderScoreBadge(parseInt(savedScore, 10))
-          : '<span class="score-badge score-none">Not scored</span>';
+          : '<span class="score-badge score-none">' + defaultScoreLabel + '</span>';
         return `
           <div class="sentence-card" data-id="${s.id}">
             <div class="sentence-text">${s.text}</div>
@@ -236,7 +239,9 @@
           const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/mp4' });
           const reader = new FileReader();
           reader.onloadend = () => {
+            cleanOldRecordings();
             localStorage.setItem(currentRecordingId, reader.result);
+            localStorage.setItem(currentRecordingId + '_ts', Date.now().toString());
             stream.getTracks().forEach(t => t.stop());
             evaluateSpeech(topicId, sentenceId, sentenceText);
             renderSentencesForTopic();
@@ -288,7 +293,13 @@
 
     function evaluateSpeech(topicId, sentenceId, originalText) {
       const userText = transcriptBuffer || '';
-      if (!userText) return;
+      if (!userText) {
+        if (!scoringSupported) {
+          const display = document.getElementById(`scoreDisplay_${topicId}_${sentenceId}`);
+          if (display) display.innerHTML = '<span class="score-badge score-none">Scoring N/A</span>';
+        }
+        return;
+      }
 
       const score = calculateSimilarity(originalText, userText);
       const scoreKey = `score_${topicId}_${sentenceId}`;
@@ -323,6 +334,49 @@
       }
 
       return Math.round((matched / origWords.length) * 100);
+    }
+
+    function getLocalStorageUsage() {
+      let total = 0;
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          total += localStorage[key].length * 2;
+        }
+      }
+      return total;
+    }
+
+    function cleanOldRecordings() {
+      const MAX_BYTES = 5 * 1024 * 1024;
+      const usage = getLocalStorageUsage();
+      if (usage < MAX_BYTES * 0.8) return;
+
+      const items = [];
+      for (let key in localStorage) {
+        if (localStorage.hasOwnProperty(key)) {
+          const match = key.match(/^recording_(\d+)_(\d+)$/);
+          if (match) {
+            const tsKey = key + '_ts';
+            const ts = localStorage.getItem(tsKey);
+            items.push({
+              recordingKey: key,
+              tsKey: tsKey,
+              topicId: match[1],
+              sentenceId: match[2],
+              timestamp: ts ? parseInt(ts, 10) : 0
+            });
+          }
+        }
+      }
+
+      items.sort((a, b) => a.timestamp - b.timestamp);
+
+      for (const item of items) {
+        if (getLocalStorageUsage() < MAX_BYTES * 0.5) break;
+        localStorage.removeItem(item.recordingKey);
+        localStorage.removeItem(item.tsKey);
+        localStorage.removeItem(`score_${item.topicId}_${item.sentenceId}`);
+      }
     }
 
     function renderSentencesForTopic() {
